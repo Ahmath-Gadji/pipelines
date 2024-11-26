@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from starlette.responses import StreamingResponse, Response
 from pydantic import BaseModel, ConfigDict
-from typing import List, Union, Generator, Iterator
+from typing import AsyncGenerator, AsyncIterator, List, Union, Generator, Iterator
 
 
 from utils.pipelines.auth import bearer_security, get_current_user
@@ -27,6 +27,8 @@ import json
 import uuid
 import sys
 import subprocess
+import inspect
+import asyncio
 
 
 from config import API_KEY, PIPELINES_DIR
@@ -683,13 +685,30 @@ async def generate_openai_chat_completion(form_data: OpenAIChatCompletionForm):
 
         if form_data.stream:
 
-            def stream_content():
-                res = pipe(
-                    user_message=user_message,
-                    model_id=pipeline_id,
-                    messages=messages,
-                    body=form_data.model_dump(),
-                )
+            async def unified_iterate(res: Union[Iterator, AsyncIterator]):
+                """Unified iteration over synchronous and asynchronous iterators."""
+                if isinstance(res, AsyncIterator):
+                    async for line in res:
+                        yield line
+                else:
+                    for line in res:
+                        yield line
+
+            async def stream_content():
+                if inspect.iscoroutinefunction(pipe):
+                    res = await pipe(
+                        user_message=user_message,
+                        model_id=pipeline_id,
+                        messages=messages,
+                        body=form_data.model_dump(),
+                    )
+                else:
+                    res = pipe(
+                        user_message=user_message,
+                        model_id=pipeline_id,
+                        messages=messages,
+                        body=form_data.model_dump(),
+                    )
 
                 logging.info(f"stream:true:{res}")
 
@@ -698,8 +717,8 @@ async def generate_openai_chat_completion(form_data: OpenAIChatCompletionForm):
                     logging.info(f"stream_content:str:{message}")
                     yield f"data: {json.dumps(message)}\n\n"
 
-                if isinstance(res, Iterator):
-                    for line in res:
+                if isinstance(res, (Iterator, AsyncIterator)):
+                    async for line in unified_iterate(res):
                         if isinstance(line, BaseModel):
                             line = line.model_dump_json()
                             line = f"data: {line}"
@@ -734,7 +753,7 @@ async def generate_openai_chat_completion(form_data: OpenAIChatCompletionForm):
                     }
 
                     yield f"data: {json.dumps(finish_message)}\n\n"
-                    yield f"data: [DONE]"
+                    yield f"data: [DONE]"    
 
             return StreamingResponse(stream_content(), media_type="text/event-stream")
         else:
