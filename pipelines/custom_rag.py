@@ -56,5 +56,5 @@ class Pipeline:
                 headers=headers,
                 json=history,
             ) as response:
-                async for chunk in response.aiter_bytes():
-                    yield chunk.decode()         
+                async for token in response.aiter_bytes():
+                    yield token.decode()         
