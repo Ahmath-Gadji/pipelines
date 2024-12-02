@@ -130,5 +130,5 @@ fi
 
 
 # Start the server
-uvicorn main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*' --reload --reload-dir /app/pipelines
+uvicorn main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*' --reload
 

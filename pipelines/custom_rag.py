@@ -5,18 +5,17 @@ date: 2024-05-30
 version: 1.0
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Haystack library.
-requirements: haystack-ai, datasets>=2.6.1, sentence-transformers>=2.2.0
 """
 
 from typing import AsyncIterator, List, Union, Generator, Iterator
-from schemas import OpenAIChatMessage
 import httpx
-import os
-import asyncio
 import json
+import json
+from urllib.parse import urlparse, urlunparse, quote
 from pydantic import BaseModel
 
 URL = "http://localhost:8082/{method}/"
+SOURCE = '\n **Sources**: \n'
 
 class Pipeline:
     class Valves(BaseModel):
@@ -28,6 +27,9 @@ class Pipeline:
 
 
     async def on_startup(self):
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            response = await client.get(url=self.url.format(method='hello'))
+            print(response.text)
         pass
 
 
@@ -48,6 +50,12 @@ class Pipeline:
             "new_user_input": user_message
         }
 
+        # Preprocessing
+        for i, message in enumerate(messages):
+            if message['role'] == 'role':
+                message['content'] = message['content'].split(SOURCE)[0]
+                messages[i] = message
+
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
             async with client.stream(
                 'POST',
@@ -56,5 +64,35 @@ class Pipeline:
                 headers=headers,
                 json=history,
             ) as response:
+                
+                metadata_sources = response.headers.get("X-Metadata-Sources")
+                formatted_src = format_sources(metadata_sources)
                 async for token in response.aiter_bytes():
-                    yield token.decode()         
+                    yield token.decode()   
+
+                yield formatted_src   
+
+
+
+def format_sources(metadata_sources):
+    sources = json.loads(metadata_sources)
+    formatted_sources = []
+    
+    if sources:
+        print([d['doc_id'] for d in sources])
+        for doc in sources:
+            encoded_url = quote(doc['url'], safe=':/')
+
+            parsed_url = urlparse(doc['url'])
+            doc_name = parsed_url.path.split('/')[-1]
+
+            if "pdf" in doc_name.lower():
+                s = f"* {doc['doc_id']}({encoded_url}#page={doc['page']}): {doc_name}"
+            else:
+                s = f"* {doc['doc_id']}({encoded_url}): {doc_name}"
+
+            formatted_sources.append(s)
+
+        return f'{SOURCE}' + '\n'.join(formatted_sources)
+    else:
+        return ''
