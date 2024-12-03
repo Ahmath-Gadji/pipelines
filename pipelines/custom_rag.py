@@ -26,9 +26,6 @@ class Pipeline:
         self.name = "RAGondin"
 
     async def on_startup(self):
-        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
-            response = await client.get(url=self.url.format(method='hello'))
-            print(response.text)
         pass
 
 
