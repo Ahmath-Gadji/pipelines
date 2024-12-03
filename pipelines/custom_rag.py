@@ -11,8 +11,8 @@ from typing import AsyncIterator, List, Union, Generator, Iterator, Optional
 import httpx
 import json
 import json
-from urllib.parse import urlparse, urlunparse, quote
-from pydantic import BaseModel, Field
+from urllib.parse import urlparse, quote
+from pydantic import BaseModel
 
 URL = "http://localhost:8082/{method}/"
 SOURCE = '\n **Sources**: \n'
@@ -56,7 +56,7 @@ class Pipeline:
                 messages[i] = message
 
         history = messages[:-1] # exclude the latest message  
-         
+
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
             async with client.stream(
                 'POST',
@@ -80,7 +80,7 @@ def format_sources(metadata_sources):
     formatted_sources = []
     
     if sources:
-        print([d['doc_id'] for d in sources])
+        # print([d['doc_id'] for d in sources])
         for doc in sources:
             encoded_url = quote(doc['url'], safe=':/')
 
@@ -88,9 +88,10 @@ def format_sources(metadata_sources):
             doc_name = parsed_url.path.split('/')[-1]
 
             if "pdf" in doc_name.lower():
-                s = f"* {doc['doc_id']}({encoded_url}#page={doc['page']}): {doc_name}"
-            else:
-                s = f"* {doc['doc_id']}({encoded_url}): {doc_name}"
+                encoded_url = f'{encoded_url}#page={doc['page']}'
+
+            s = f"* {doc['doc_id']} : [{doc_name}]({encoded_url})"
+            # s = f"* {doc['doc_id']}: {encoded_url} '{doc_name}'"
 
             formatted_sources.append(s)
 
