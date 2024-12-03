@@ -7,12 +7,12 @@ license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Haystack library.
 """
 
-from typing import AsyncIterator, List, Union, Generator, Iterator
+from typing import AsyncIterator, List, Union, Generator, Iterator, Optional
 import httpx
 import json
 import json
 from urllib.parse import urlparse, urlunparse, quote
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 URL = "http://localhost:8082/{method}/"
 SOURCE = '\n **Sources**: \n'
@@ -24,7 +24,6 @@ class Pipeline:
     def __init__(self):
         self.url = URL
         self.name = "RAGondin"
-
 
     async def on_startup(self):
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
@@ -45,17 +44,19 @@ class Pipeline:
             "Content-Type": "application/json"
         }
 
-        history = messages[:-1] # exclude the latest message   
         params = {
             "new_user_input": user_message
         }
 
         # Preprocessing
         for i, message in enumerate(messages):
-            if message['role'] == 'role':
+            if message['role'] == 'assistant':
                 message['content'] = message['content'].split(SOURCE)[0]
+                print(message)
                 messages[i] = message
 
+        history = messages[:-1] # exclude the latest message  
+         
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
             async with client.stream(
                 'POST',
