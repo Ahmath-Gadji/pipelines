@@ -75,9 +75,9 @@ class Pipeline:
 def format_sources(metadata_sources):
     sources = json.loads(metadata_sources)
     formatted_sources = []
+    markdown_links = []
     
     if sources:
-        # print([d['doc_id'] for d in sources])
         for doc in sources:
             encoded_url = quote(doc['url'], safe=':/')
 
@@ -88,10 +88,12 @@ def format_sources(metadata_sources):
                 encoded_url = f'{encoded_url}#page={doc['page']}'
 
             s = f"* {doc['doc_id']} : [{doc_name}]({encoded_url})"
+            s2 = f"{doc['doc_id']}: {encoded_url} '{doc_name}'"
+
             # s = f"* {doc['doc_id']}: {encoded_url} '{doc_name}'"
-
             formatted_sources.append(s)
+            markdown_links.append(s2)
 
-        return f'{SOURCE}' + '\n'.join(formatted_sources)
+        return f'{SOURCE}' + '\n' + '\n'.join(markdown_links) + '\n' + '\n'.join(formatted_sources)  
     else:
         return ''
