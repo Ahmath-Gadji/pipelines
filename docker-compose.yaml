@@ -14,7 +14,7 @@ services:
       - pipelines:/app/pipelines
       - ./pyproject.toml:/app/pyproject.toml
       - ./poetry.lock:/app/poetry.lock
-      - venv:/app/${ENVS_PATH}/${VENV_NAME}
+      - pipeline_venv:/app/${ENVS_PATH}/${VENV_NAME}
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -48,7 +48,7 @@ volumes:
 
 
 
-  venv:
+  pipeline_venv:
     driver: local
     driver_opts:
       type: none
